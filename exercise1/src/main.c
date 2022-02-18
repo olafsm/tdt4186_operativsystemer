@@ -3,6 +3,7 @@
 #include <time.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h> 
 
 typedef struct alarm_t {
     time_t ring_time;
@@ -29,8 +30,19 @@ int main () {
     printf("Please enter \"s\" (schedule), \"l\" (list), \"c\" (cancel), \"x\" (exit)\n");
     
     while (1) {
+        int pid;
+        int wstatus;
+        
         char character = getchar();
+
+        //Deal with zombies
+        while( (pid = waitpid(-1, &wstatus, WNOHANG) > 0));
+
+
         while(getchar() != '\n');
+
+        
+
         printf("Please enter \"s\" (schedule), \"l\" (list), \"c\" (cancel), \"x\" (exit)\n");
         switch (character) {
             case 's':
@@ -40,6 +52,11 @@ int main () {
                 char buffer[20];
 
                 printf("Pressed s\n");
+                if(alarms_i >=99){
+                    printf("Error: Too many alarms set");
+                    break;
+                }
+                else{
                 printf("Schedule alarm at which date and time? ");
                 
                 //gets user input on format yyyy-mm-dd hh:mm:ss
@@ -61,38 +78,55 @@ int main () {
                 printf("You entered %s \n", buffer);
                 printf("Scheduling alarm in %ld seconds \n", alarm_delay);
                 
-                // create alarm type and update list of alarms
+                // create alarm type
                 alarm_t alarm;
                 alarm.ring_time = alarm_time;
                 strcpy(alarm.timestamp, buffer);
-                alarms[alarms_i] = alarm;
-                alarms_i += 1;
+                
 
                 //forking processes for alarms, each process handles one alarm
                 int pid;
                 pid = fork();
                 if(pid == 0){
-                    int child_pid = getpid();
-                    alarm.PID = child_pid;
                     sleep(alarm_delay);
                     printf("RING!!\n");
                     exit(0);
                 }
+                else{
+    
+                alarm.PID = pid;
+                //updates list of alarms and incremets
+                alarms[alarms_i] = alarm;
+                alarms_i += 1;
 
                 break;
+                }}
             }
             case 'l':
             {
                 for (int i=0;i<alarms_i;i++) {
+                    if(alarms[i].PID != -5){
                     printf("Alarm %d: %s\n",i, alarms[i].timestamp);
+                    }
                 }
                 break;
             }                
             case 'c': 
             {
                 int del_index;
+
+                printf("Cancel which alarm? \n");
+
                 scanf("%d", &del_index);
                 printf("%d\n", del_index);
+
+                //Cancels the alarm and makes sure it is not printed when alarms are listed
+                if(kill(alarms[del_index].PID, SIGKILL) == 0){
+                    alarms[del_index].PID = -5;
+                }
+                else{
+                    printf("Error: Alarm was not canceled \n");
+                }
 
                 break;
             }
