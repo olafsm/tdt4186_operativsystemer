@@ -90,6 +90,8 @@ int main () {
                 if(pid == 0){
                     sleep(alarm_delay);
                     printf("RING!!\n");
+                    char *args[]={"mpg123", "alarm.mp3"};
+                    execvp(args[0],args);
                     exit(0);
                 }
                 else{
